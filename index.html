@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CDLI Science 1206 - Weather Station & Grapher</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --secondary: #0284c7;
+      --success: #15803d;
+      --danger: #b91c1c;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #cbd5e1;
+      --text: #0f172a;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      margin: 0;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: var(--card);
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    h1, h2, h3 { color: var(--primary); margin-top: 0; }
+    
+    .banner {
+      background: #eff6ff;
+      border: 1px solid var(--secondary);
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin-bottom: 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    label { font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 4px; }
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 0.95rem;
+    }
+    select.required-alert {
+      border: 2px solid var(--danger) !important;
+      background-color: #fef2f2 !important;
+    }
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .btn:hover { background: #172554; }
+    .btn-secondary { background: var(--secondary); }
+    .btn-secondary:hover { background: #0369a1; }
+    
+    /* Map Buttons States */
+    .btn-map {
+      padding: 6px 6px;
+      font-size: 0.72rem;
+      margin-top: 6px;
+      display: block;
+      text-decoration: none;
+      color: white;
+      border-radius: 4px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .btn-map.active {
+      background: #0284c7;
+    }
+    .btn-map.active:hover {
+      background: #0369a1;
+    }
+    .btn-map.locked-school {
+      background: #94a3b8;
+      cursor: not-allowed;
+      opacity: 0.8;
+    }
+    .btn-map.locked-future {
+      background: #f59e0b;
+      color: #78350f;
+      cursor: not-allowed;
+      font-weight: bold;
+    }
+
+    /* Day Column Buttons */
+    .day-btn-group {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .btn-copy-day {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+      padding: 4px 6px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      border-radius: 3px;
+      cursor: pointer;
+      flex: 1;
+    }
+    .btn-copy-day:hover { background: #bae6fd; }
+
+    /* Table */
+    .table-container { overflow-x: auto; margin-bottom: 25px; }
+    table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.85rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 4px; }
+    th { background: #f1f5f9; vertical-align: top; }
+    table input { text-align: center; padding: 6px; font-size: 0.85rem; }
+    
+    /* Charts */
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+    .chart-box { 
+      background: #fff; 
+      border: 1px solid var(--border); 
+      border-radius: 6px; 
+      padding: 14px; 
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .btn-copy-chart {
+      background: #f1f5f9;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+      padding: 5px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-copy-chart:hover { background: #e2e8f0; }
+    .btn-copy-chart.copied {
+      background: #dcfce7;
+      color: #15803d;
+      border-color: #86efac;
+    }
+    
+    .toast-pill {
+      background: var(--success);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      display: none;
+    }
+
+    .school-warning {
+      color: var(--danger);
+      font-size: 0.82rem;
+      font-weight: bold;
+      margin-top: 4px;
+      display: none;
+    }
+
+    /* Modal for Bulk Restore */
+    #restoreModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      max-width: 580px;
+      width: 90%;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div style="border-bottom: 2px solid var(--primary); padding-bottom: 10px; margin-bottom: 20px;">
+    <h1>CDLI Science 1206: Weather Station & Graph Engine</h1>
+    <p style="margin: 0; color: #475569;">
+      Select your school, inspect Earth.nullschool each morning, and paste your labeled data lines into your assigned Google Doc.
+    </p>
+  </div>
+
+  <!-- Top Google Doc Sync Bar -->
+  <div class="banner">
+    <div>
+      <strong>Switched computers or finished all 7 days?</strong>
+      <span style="display: block; font-size: 0.82rem; color: #475569;">
+        Paste your lines from your Google Doc to instantly rebuild the table and graphs.
+      </span>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <span id="toastBadge" class="toast-pill">✓ Copied!</span>
+      <button class="btn btn-secondary" onclick="openRestoreModal()">📥 Restore Days from Google Doc</button>
+    </div>
+  </div>
+
+  <!-- Setup Info (Cleaned of any demo toggles) -->
+  <div class="grid-3">
+    <div>
+      <label for="studentName">Student Name:</label>
+      <input type="text" id="studentName" placeholder="First & Last Name" oninput="autoSaveLocal()">
+    </div>
+    <div>
+      <label for="schoolSelect">School Location (Required):</label>
+      <select id="schoolSelect" autocomplete="off" onchange="onSchoolChange()">
+        <option value="" selected>-- ⚠️ Step 1: Select Your School First --</option>
+        <option value="-57.01,53.71,Labrador">Henry Gordon Academy (Cartwright, Labrador)</option>
+        <option value="-55.69,52.36,Labrador">St. Lewis Academy (St. Lewis, Labrador)</option>
+        <option value="-56.02,51.19,Island">Mary Simms All Grade (Main Brook, Island)</option>
+        <option value="-57.30,50.64,Island">French Shore Academy (Port Saunders, Island)</option>
+        <option value="-53.36,46.73,Island">Stella Maris Academy (Trepassey, Island)</option>
+      </select>
+      <div id="schoolWarn" class="school-warning">⚠️ Please select your school above to unlock the map links!</div>
+    </div>
+    <div>
+      <label for="startDate">Start Date (Wed Oct 21):</label>
+      <input type="date" id="startDate" value="2026-10-21" onchange="updateAllDayLinks(); autoSaveLocal();">
+    </div>
+  </div>
+
+  <!-- Table 1 -->
+  <h2>7-Day Weather Observations (Table 1)</h2>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 15%;">Variable</th>
+          <th>
+            Day 1<br><span id="d0-lbl">Wed 10/21</span>
+            <a id="lnk0" class="btn-map locked-school" onclick="handleMapClick(0)">🔒 Select School First</a>
+            <div class="day-btn-group">
+              <button class="btn-copy-day" onclick="copySingleDay(0)">📋 Copy Day 1</button>
+            </div>
+          </th>
+          <th>
+            Day 2<br><span id="d1-lbl">Thu 10/22</span>
+            <a id="lnk1" class="btn-map locked-school" onclick="handleMapClick(1)">🔒 Select School First</a>
+            <div class="day-btn-group">
+              <button class="btn-copy-day" onclick="copySingleDay(1)">📋 Copy Day 2</button>
+            </div>
+          </th>
+          <th>
+            Day 3<br><span id="d2-lbl">Fri 10/23</span>
+            <a id="lnk2" class="btn-map locked-school" onclick="handleMapClick(2)">🔒 Select School First</a>
+            <div class="day-btn-group">
+              <button class="btn-copy-day" onclick="copySingleDay(2)">📋 Copy Day 3</button>
+            </div>
+          </th>
+          <th>
+            Day 4<br><span id="d3-lbl">Sat 10/24</span>
+            <a id="lnk3" class="btn-map locked-school" onclick="handleMapClick(3)">🔒 Select School First</a>
+            <div class="day-btn-group">
+              <button class="btn-copy-day" onclick="copySingleDay(3)">📋 Copy Day 4</button>
+            </div>
+          </th>
+          <th>
+            Day 5<br><span id="d4-lbl">Sun 10/25</span>
+            <a id="lnk4" class="btn-map locked-school" onclick="handleMapClick(4)">🔒 Select School First</a>
+            <div class="day-btn-group">
+              <button class="btn-copy-day" onclick="copySingleDay(4)">📋 Copy Day 5</button>
+            </div>
+          </th>
+          <th>
+            Day 6<br><span id="d5-lbl">Mon 10/26</span>
+            <a id="lnk5" class="btn-map locked-school" onclick="handleMapClick(5)">🔒 Select School First</a>
+            <div class="day-btn-group">
+              <button class="btn-copy-day" onclick="copySingleDay(5)">📋 Copy Day 6</button>
+            </div>
+          </th>
+          <th>
+            Day 7<br><span id="d6-lbl">Tue 10/27</span>
+            <a id="lnk6" class="btn-map locked-school" onclick="handleMapClick(6)">🔒 Select School First</a>
+            <div class="day-btn-group">
+              <button class="btn-copy-day" onclick="copySingleDay(6)">📋 Copy Day 7</button>
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Temperature (°C)</strong></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="temp" data-day="0" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="temp" data-day="1" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="temp" data-day="2" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="temp" data-day="3" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="temp" data-day="4" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="temp" data-day="5" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="temp" data-day="6" oninput="renderCharts(); autoSaveLocal();"></td>
+        </tr>
+        <tr>
+          <td><strong>Precipitation (mm)</strong></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="precip" data-day="0" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="precip" data-day="1" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="precip" data-day="2" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="precip" data-day="3" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="precip" data-day="4" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="precip" data-day="5" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="precip" data-day="6" oninput="renderCharts(); autoSaveLocal();"></td>
+        </tr>
+        <tr>
+          <td><strong>Humidity (%)</strong></td>
+          <td><input type="number" step="1" class="data-inp" data-var="humidity" data-day="0" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="humidity" data-day="1" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="humidity" data-day="2" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="humidity" data-day="3" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="humidity" data-day="4" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="humidity" data-day="5" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="humidity" data-day="6" oninput="renderCharts(); autoSaveLocal();"></td>
+        </tr>
+        <tr>
+          <td><strong>Pressure (hPa)</strong></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="pressure" data-day="0" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="pressure" data-day="1" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="pressure" data-day="2" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="pressure" data-day="3" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="pressure" data-day="4" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="pressure" data-day="5" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="0.1" class="data-inp" data-var="pressure" data-day="6" oninput="renderCharts(); autoSaveLocal();"></td>
+        </tr>
+        <tr>
+          <td><strong>Wind Speed (km/h)</strong></td>
+          <td><input type="number" step="1" class="data-inp" data-var="wind" data-day="0" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="wind" data-day="1" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="wind" data-day="2" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="wind" data-day="3" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="wind" data-day="4" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="wind" data-day="5" oninput="renderCharts(); autoSaveLocal();"></td>
+          <td><input type="number" step="1" class="data-inp" data-var="wind" data-day="6" oninput="renderCharts(); autoSaveLocal();"></td>
+        </tr>
+        <tr>
+          <td><strong>Wind Direction</strong></td>
+          <td><input type="text" class="data-inp" data-var="wind_dir" data-day="0" oninput="autoSaveLocal()" placeholder="e.g. SW"></td>
+          <td><input type="text" class="data-inp" data-var="wind_dir" data-day="1" oninput="autoSaveLocal()" placeholder="e.g. SW"></td>
+          <td><input type="text" class="data-inp" data-var="wind_dir" data-day="2" oninput="autoSaveLocal()" placeholder="e.g. W"></td>
+          <td><input type="text" class="data-inp" data-var="wind_dir" data-day="3" oninput="autoSaveLocal()" placeholder="e.g. NW"></td>
+          <td><input type="text" class="data-inp" data-var="wind_dir" data-day="4" oninput="autoSaveLocal()" placeholder="e.g. N"></td>
+          <td><input type="text" class="data-inp" data-var="wind_dir" data-day="5" oninput="autoSaveLocal()" placeholder="e.g. NE"></td>
+          <td><input type="text" class="data-inp" data-var="wind_dir" data-day="6" oninput="autoSaveLocal()" placeholder="e.g. S"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Auto-Generated Charts -->
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
+    <div>
+      <h2 style="margin-bottom: 4px;">Trend Analysis Graphs</h2>
+      <span style="font-size: 0.85rem; color: #475569;">
+        Click <strong>"Copy Graph to Doc"</strong> under each chart, then switch to your Google Doc and press <strong>Ctrl + V</strong>.
+      </span>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-box">
+      <div class="chart-header">
+        <strong>Temperature Trend</strong>
+        <button class="btn-copy-chart" onclick="copyChartImage('chartTemp', this)">📋 Copy Graph to Doc</button>
+      </div>
+      <canvas id="chartTemp"></canvas>
+    </div>
+
+    <div class="chart-box">
+      <div class="chart-header">
+        <strong>Atmospheric Pressure Trend</strong>
+        <button class="btn-copy-chart" onclick="copyChartImage('chartPressure', this)">📋 Copy Graph to Doc</button>
+      </div>
+      <canvas id="chartPressure"></canvas>
+    </div>
+
+    <div class="chart-box">
+      <div class="chart-header">
+        <strong>Wind Speed Trend</strong>
+        <button class="btn-copy-chart" onclick="copyChartImage('chartWind', this)">📋 Copy Graph to Doc</button>
+      </div>
+      <canvas id="chartWind"></canvas>
+    </div>
+
+    <div class="chart-box">
+      <div class="chart-header">
+        <strong>Relative Humidity Trend</strong>
+        <button class="btn-copy-chart" onclick="copyChartImage('chartHumidity', this)">📋 Copy Graph to Doc</button>
+      </div>
+      <canvas id="chartHumidity"></canvas>
+    </div>
+
+    <div class="chart-box" style="grid-column: span 2;">
+      <div class="chart-header">
+        <strong>Precipitation Trend</strong>
+        <button class="btn-copy-chart" onclick="copyChartImage('chartPrecip', this)">📋 Copy Graph to Doc</button>
+      </div>
+      <canvas id="chartPrecip"></canvas>
+    </div>
+  </div>
+
+  <!-- Discreet Teacher Override at Very Bottom -->
+  <div style="margin-top: 50px; padding-top: 15px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: flex-end;">
+    <label style="font-weight: normal; font-size: 0.72rem; color: #94a3b8; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+      <input type="checkbox" id="demoMode" style="width: auto;" onchange="updateAllDayLinks()">
+      Teacher Override: Unlock all calendar days for testing
+    </label>
+  </div>
+</div>
+
+<!-- Modal: Restore All Days from Google Doc -->
+<div id="restoreModal">
+  <div class="modal-content">
+    <h3 style="margin-top: 0;">Restore Days from Google Doc</h3>
+    <p style="font-size: 0.85rem; color: #475569;">
+      Copy your labeled lines from your Google Doc and paste them here:
+    </p>
+    <textarea id="bulkPasteText" rows="8" style="width: 100%; box-sizing: border-box; font-family: monospace; font-size: 0.8rem;" placeholder="Day 1: Temp: 4.2°C | Precip: 0.0mm | Humidity: 78% | Pressure: 1014hPa | Wind: 18km/h NW&#10;Day 2: Temp: 5.1°C | Precip: 2.0mm | Humidity: 85% | Pressure: 1008hPa | Wind: 22km/h W"></textarea>
+    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
+      <button class="btn" style="background: #94a3b8;" onclick="closeRestoreModal()">Cancel</button>
+      <button class="btn btn-secondary" onclick="applyBulkPaste()">Apply to Table</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let dayLabels = [];
+  let mapUrls = [];
+  let dayAvailability = [];
+
+  function onSchoolChange() {
+    const sel = document.getElementById('schoolSelect');
+    const warn = document.getElementById('schoolWarn');
+    if (sel.value) {
+      sel.classList.remove('required-alert');
+      warn.style.display = 'none';
+      updateAllDayLinks();
+    }
+  }
+
+  function handleMapClick(dayIndex) {
+    const sel = document.getElementById('schoolSelect');
+    const warn = document.getElementById('schoolWarn');
+
+    if (!sel.value) {
+      sel.classList.add('required-alert');
+      warn.style.display = 'block';
+      sel.focus();
+      alert("⚠️ Step 1: Please select your school location from the dropdown first!");
+      return;
+    }
+
+    if (!dayAvailability[dayIndex]) {
+      alert(`⏳ Day ${dayIndex + 1} has not occurred yet!\n\nYou cannot record weather from a computer forecast model. You must wait until the morning of ${dayLabels[dayIndex]} to record actual observations.`);
+      return;
+    }
+
+    if (mapUrls[dayIndex]) {
+      window.open(mapUrls[dayIndex], '_blank');
+    }
+  }
+
+  function updateAllDayLinks() {
+    const sel = document.getElementById('schoolSelect');
+    const isSelected = !!sel.value;
+    const demoMode = document.getElementById('demoMode')?.checked || false;
+
+    const schoolVal = isSelected ? sel.value.split(',') : ['-57.01', '53.71', 'Labrador'];
+    const lon = schoolVal[0];
+    const lat = schoolVal[1];
+    const coords = `${lon},${lat}`;
+    const startVal = document.getElementById('startDate').value;
+    const baseDate = startVal ? new Date(startVal + 'T00:00:00') : new Date('2026-10-21T00:00:00');
+
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    dayLabels = [];
+    mapUrls = [];
+    dayAvailability = [];
+
+    const now = new Date(); // Actual current real-world time
+
+    for (let i = 0; i < 7; i++) {
+      let d = new Date(baseDate);
+      d.setDate(baseDate.getDate() + i);
+
+      let yyyy = d.getFullYear();
+      let mm = String(d.getMonth() + 1).padStart(2, '0');
+      let dd = String(d.getDate()).padStart(2, '0');
+      let dayName = daysOfWeek[d.getDay()];
+
+      const labelStr = `${dayName} ${mm}/${dd}`;
+      document.getElementById(`d${i}-lbl`).innerText = labelStr;
+      dayLabels.push(labelStr);
+
+      mapUrls[i] = `https://earth.nullschool.net/#${yyyy}/${mm}/${dd}/1200Z/wind/surface/level/orthographic=${coords},3000/loc=${coords}`;
+
+      // Date verification: The 12:00 UTC observation is available if 'now' is past 12:00 UTC on that day
+      const targetUtcTime = Date.UTC(yyyy, d.getMonth(), d.getDate(), 12, 0, 0);
+      const isPastOrToday = (now.getTime() >= targetUtcTime) || demoMode;
+      dayAvailability[i] = isPastOrToday;
+
+      const link = document.getElementById(`lnk${i}`);
+      if (link) {
+        if (!isSelected) {
+          link.className = "btn-map locked-school";
+          link.innerText = "🔒 Select School First";
+        } else if (!isPastOrToday) {
+          link.className = "btn-map locked-future";
+          link.innerText = `🔒 Locked (${dayName} ${mm}/${dd})`;
+        } else {
+          link.className = "btn-map active";
+          link.innerText = "Open 8:00 AM Map ↗";
+        }
+      }
+    }
+    updateChartLabels();
+  }
+
+  // Chart Setup
+  const charts = {};
+  function createChart(id, label, color, type = 'line') {
+    const ctx = document.getElementById(id).getContext('2d');
+    return new Chart(ctx, {
+      type: type,
+      data: {
+        labels: dayLabels,
+        datasets: [{
+          label: label,
+          data: [null, null, null, null, null, null, null],
+          borderColor: color,
+          backgroundColor: color === '#0284c7' ? 'rgba(2, 132, 199, 0.2)' : color,
+          fill: type === 'bar',
+          tension: 0.2
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: true } } }
+    });
+  }
+
+  function updateChartLabels() {
+    Object.values(charts).forEach(c => {
+      c.data.labels = dayLabels;
+      c.update();
+    });
+  }
+
+  charts['chartTemp'] = createChart('chartTemp', 'Temperature (°C)', '#ef4444');
+  charts['chartPressure'] = createChart('chartPressure', 'Pressure (hPa)', '#8b5cf6');
+  charts['chartWind'] = createChart('chartWind', 'Wind Speed (km/h)', '#10b981');
+  charts['chartHumidity'] = createChart('chartHumidity', 'Humidity (%)', '#f59e0b');
+  charts['chartPrecip'] = createChart('chartPrecip', 'Precipitation (mm)', '#0284c7', 'bar');
+
+  function renderCharts() {
+    const vars = ['temp', 'pressure', 'wind', 'humidity', 'precip'];
+    const map = { temp: 'chartTemp', pressure: 'chartPressure', wind: 'chartWind', humidity: 'chartHumidity', precip: 'chartPrecip' };
+    vars.forEach(v => {
+      const inputs = document.querySelectorAll(`input[data-var="${v}"]`);
+      charts[map[v]].data.datasets[0].data = Array.from(inputs).map(i => i.value === '' ? null : parseFloat(i.value));
+      charts[map[v]].update();
+    });
+  }
+
+  // Copy Chart Image
+  function copyChartImage(canvasId, btnElement) {
+    const srcCanvas = document.getElementById(canvasId);
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = srcCanvas.width;
+    tempCanvas.height = srcCanvas.height;
+    const ctx = tempCanvas.getContext('2d');
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+    ctx.drawImage(srcCanvas, 0, 0);
+
+    tempCanvas.toBlob(blob => {
+      if (!blob) return;
+      try {
+        const item = new ClipboardItem({ 'image/png': blob });
+        navigator.clipboard.write([item]).then(() => {
+          btnElement.classList.add('copied');
+          btnElement.innerText = '✓ Copied! Paste in Doc';
+          setTimeout(() => {
+            btnElement.classList.remove('copied');
+            btnElement.innerText = '📋 Copy Graph to Doc';
+          }, 2500);
+        }).catch(() => {
+          alert("Right-click the graph and select 'Copy Image', then paste into your Doc.");
+        });
+      } catch (err) {
+        alert("Right-click the graph and select 'Copy Image', then paste into your Doc.");
+      }
+    });
+  }
+
+  function showToast(text) {
+    const badge = document.getElementById('toastBadge');
+    badge.innerText = text;
+    badge.style.display = 'inline-block';
+    setTimeout(() => { badge.style.display = 'none'; }, 2200);
+  }
+
+  // Single Day Copy
+  function copySingleDay(dayIndex) {
+    const getVal = (v) => {
+      const el = document.querySelector(`input[data-var="${v}"][data-day="${dayIndex}"]`);
+      return el && el.value.trim() !== '' ? el.value.trim() : '--';
+    };
+
+    const temp = getVal('temp');
+    const precip = getVal('precip');
+    const hum = getVal('humidity');
+    const press = getVal('pressure');
+    const wind = getVal('wind');
+    const dir = getVal('wind_dir');
+
+    const dayNum = dayIndex + 1;
+    const line = `Day ${dayNum}: Temp: ${temp}°C | Precip: ${precip}mm | Humidity: ${hum}% | Pressure: ${press}hPa | Wind: ${wind}km/h ${dir}`;
+
+    navigator.clipboard.writeText(line).then(() => {
+      showToast(`✓ Day ${dayNum} Copied!`);
+    }).catch(() => {
+      prompt(`Copy your Day ${dayNum} line:`, line);
+    });
+  }
+
+  // Smart Bulk Restore Parser
+  function openRestoreModal() {
+    document.getElementById('restoreModal').style.display = 'flex';
+  }
+  function closeRestoreModal() {
+    document.getElementById('restoreModal').style.display = 'none';
+  }
+
+  function applyBulkPaste() {
+    const text = document.getElementById('bulkPasteText').value;
+    if (!text.trim()) { closeRestoreModal(); return; }
+
+    const lines = text.split('\n');
+    let loadedCount = 0;
+
+    lines.forEach(line => {
+      const dayMatch = line.match(/Day\s*([1-7])/i);
+      if (dayMatch) {
+        const dayIdx = parseInt(dayMatch[1]) - 1;
+
+        const tMatch = line.match(/Temp(?:erature)?:\s*([-\d.]+)/i);
+        const rMatch = line.match(/Precip(?:itation)?:\s*([-\d.]+)/i);
+        const hMatch = line.match(/Hum(?:idity)?:\s*([-\d.]+)/i);
+        const pMatch = line.match(/Press(?:ure)?:\s*([-\d.]+)/i);
+        const wMatch = line.match(/Wind(?:\s*Speed)?:\s*([-\d.]+)/i);
+        const dMatch = line.match(/(?:km\/h\s*|\s)([NESW]{1,3})\b/i);
+
+        const setVal = (v, match) => {
+          if (match && match[1] && match[1] !== '--') {
+            const el = document.querySelector(`input[data-var="${v}"][data-day="${dayIdx}"]`);
+            if (el) el.value = match[1];
+          }
+        };
+
+        setVal('temp', tMatch);
+        setVal('precip', rMatch);
+        setVal('humidity', hMatch);
+        setVal('pressure', pMatch);
+        setVal('wind', wMatch);
+        if (dMatch && dMatch[1]) {
+          const el = document.querySelector(`input[data-var="wind_dir"][data-day="${dayIdx}"]`);
+          if (el) el.value = dMatch[1].toUpperCase();
+        }
+
+        loadedCount++;
+      }
+    });
+
+    renderCharts();
+    autoSaveLocal();
+    closeRestoreModal();
+    showToast(`✓ Restored ${loadedCount} Day(s)!`);
+  }
+
+  // Local Cache
+  function autoSaveLocal() {
+    const state = {};
+    document.querySelectorAll('.data-inp').forEach(inp => {
+      state[`${inp.dataset.var}_${inp.dataset.day}`] = inp.value;
+    });
+    state['studentName'] = document.getElementById('studentName').value;
+    localStorage.setItem('cdli_weather_compact_cache', JSON.stringify(state));
+  }
+
+  function loadLocalCache() {
+    const cached = localStorage.getItem('cdli_weather_compact_cache');
+    if (cached) {
+      try {
+        const state = JSON.parse(cached);
+        if (state.studentName) {
+          document.getElementById('studentName').value = state.studentName;
+        }
+        document.querySelectorAll('.data-inp').forEach(inp => {
+          const val = state[`${inp.dataset.var}_${inp.dataset.day}`];
+          if (val !== undefined) inp.value = val;
+        });
+        renderCharts();
+      } catch(e){}
+    }
+  }
+
+  // Initialize
+  document.getElementById('schoolSelect').value = "";
+  updateAllDayLinks();
+  loadLocalCache();
+</script>
+</body>
+</html>
