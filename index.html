@@ -237,7 +237,7 @@
     </div>
   </div>
 
-  <!-- Setup Info (Cleaned of any demo toggles) -->
+  <!-- Setup Info -->
   <div class="grid-3">
     <div>
       <label for="studentName">Student Name:</label>
@@ -247,6 +247,9 @@
       <label for="schoolSelect">School Location (Required):</label>
       <select id="schoolSelect" autocomplete="off" onchange="onSchoolChange()">
         <option value="" selected>-- ⚠️ Step 1: Select Your School First --</option>
+        <option value="-61.69,56.54,Labrador">Jens Haven Memorial (Nain, Labrador)</option>
+        <option value="-59.77,54.91,Labrador">B.L. Morrison (Postville, Labrador)</option>
+        <option value="-58.43,54.18,Labrador">Northern Lights Academy (Rigolet, Labrador)</option>
         <option value="-57.01,53.71,Labrador">Henry Gordon Academy (Cartwright, Labrador)</option>
         <option value="-55.69,52.36,Labrador">St. Lewis Academy (St. Lewis, Labrador)</option>
         <option value="-56.02,51.19,Island">Mary Simms All Grade (Main Brook, Island)</option>
@@ -256,7 +259,7 @@
       <div id="schoolWarn" class="school-warning">⚠️ Please select your school above to unlock the map links!</div>
     </div>
     <div>
-      <label for="startDate">Start Date (Wed Oct 21):</label>
+      <label for="startDate">Start Date:</label>
       <input type="date" id="startDate" value="2026-10-21" onchange="updateAllDayLinks(); autoSaveLocal();">
     </div>
   </div>
@@ -269,49 +272,49 @@
         <tr>
           <th style="width: 15%;">Variable</th>
           <th>
-            Day 1<br><span id="d0-lbl">Wed 10/21</span>
+            Day 1<br><span id="d0-lbl">Day 1</span>
             <a id="lnk0" class="btn-map locked-school" onclick="handleMapClick(0)">🔒 Select School First</a>
             <div class="day-btn-group">
               <button class="btn-copy-day" onclick="copySingleDay(0)">📋 Copy Day 1</button>
             </div>
           </th>
           <th>
-            Day 2<br><span id="d1-lbl">Thu 10/22</span>
+            Day 2<br><span id="d1-lbl">Day 2</span>
             <a id="lnk1" class="btn-map locked-school" onclick="handleMapClick(1)">🔒 Select School First</a>
             <div class="day-btn-group">
               <button class="btn-copy-day" onclick="copySingleDay(1)">📋 Copy Day 2</button>
             </div>
           </th>
           <th>
-            Day 3<br><span id="d2-lbl">Fri 10/23</span>
+            Day 3<br><span id="d2-lbl">Day 3</span>
             <a id="lnk2" class="btn-map locked-school" onclick="handleMapClick(2)">🔒 Select School First</a>
             <div class="day-btn-group">
               <button class="btn-copy-day" onclick="copySingleDay(2)">📋 Copy Day 3</button>
             </div>
           </th>
           <th>
-            Day 4<br><span id="d3-lbl">Sat 10/24</span>
+            Day 4<br><span id="d3-lbl">Day 4</span>
             <a id="lnk3" class="btn-map locked-school" onclick="handleMapClick(3)">🔒 Select School First</a>
             <div class="day-btn-group">
               <button class="btn-copy-day" onclick="copySingleDay(3)">📋 Copy Day 4</button>
             </div>
           </th>
           <th>
-            Day 5<br><span id="d4-lbl">Sun 10/25</span>
+            Day 5<br><span id="d4-lbl">Day 5</span>
             <a id="lnk4" class="btn-map locked-school" onclick="handleMapClick(4)">🔒 Select School First</a>
             <div class="day-btn-group">
               <button class="btn-copy-day" onclick="copySingleDay(4)">📋 Copy Day 5</button>
             </div>
           </th>
           <th>
-            Day 6<br><span id="d5-lbl">Mon 10/26</span>
+            Day 6<br><span id="d5-lbl">Day 6</span>
             <a id="lnk5" class="btn-map locked-school" onclick="handleMapClick(5)">🔒 Select School First</a>
             <div class="day-btn-group">
               <button class="btn-copy-day" onclick="copySingleDay(5)">📋 Copy Day 6</button>
             </div>
           </th>
           <th>
-            Day 7<br><span id="d6-lbl">Tue 10/27</span>
+            Day 7<br><span id="d6-lbl">Day 7</span>
             <a id="lnk6" class="btn-map locked-school" onclick="handleMapClick(6)">🔒 Select School First</a>
             <div class="day-btn-group">
               <button class="btn-copy-day" onclick="copySingleDay(6)">📋 Copy Day 7</button>
@@ -436,7 +439,7 @@
     </div>
   </div>
 
-  <!-- Discreet Teacher Override at Very Bottom -->
+  <!-- Teacher Override at Very Bottom -->
   <div style="margin-top: 50px; padding-top: 15px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: flex-end;">
     <label style="font-weight: normal; font-size: 0.72rem; color: #94a3b8; display: flex; align-items: center; gap: 5px; cursor: pointer;">
       <input type="checkbox" id="demoMode" style="width: auto;" onchange="updateAllDayLinks()">
@@ -507,7 +510,7 @@
     const lat = schoolVal[1];
     const coords = `${lon},${lat}`;
     const startVal = document.getElementById('startDate').value;
-    const baseDate = startVal ? new Date(startVal + 'T00:00:00') : new Date('2026-10-21T00:00:00');
+    const baseDate = startVal ? new Date(startVal + 'T00:00:00') : new Date();
 
     const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     dayLabels = [];
