@@ -439,8 +439,15 @@
     </div>
   </div>
 
-  <!-- Teacher Override at Very Bottom -->
-  <div style="margin-top: 50px; padding-top: 15px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: flex-end;">
+  <!-- Teacher Controls Section -->
+  <div style="margin-top: 50px; padding-top: 15px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <div>
+      <button type="button" class="btn" style="background: #047857;" onclick="fetchTeacherKeyWithPassword(this)">
+        🔑 Auto-Generate Answer Key & Graphs
+      </button>
+      <span id="keyStatus" style="font-size: 0.8rem; color: #047857; margin-left: 8px;"></span>
+    </div>
+
     <label style="font-weight: normal; font-size: 0.72rem; color: #94a3b8; display: flex; align-items: center; gap: 5px; cursor: pointer;">
       <input type="checkbox" id="demoMode" style="width: auto;" onchange="updateAllDayLinks()">
       Teacher Override: Unlock all calendar days for testing
@@ -467,6 +474,7 @@
   let dayLabels = [];
   let mapUrls = [];
   let dayAvailability = [];
+  let isTeacherAuthenticated = false;
 
   function onSchoolChange() {
     const sel = document.getElementById('schoolSelect');
@@ -510,14 +518,14 @@
     const lat = schoolVal[1];
     const coords = `${lon},${lat}`;
     const startVal = document.getElementById('startDate').value;
-    const baseDate = startVal ? new Date(startVal + 'T00:00:00') : new Date();
+    const baseDate = startVal ? new Date(startVal + 'T00:00:00') : new Date('2026-10-21T00:00:00');
 
     const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     dayLabels = [];
     mapUrls = [];
     dayAvailability = [];
 
-    const now = new Date(); // Actual current real-world time
+    const now = new Date();
 
     for (let i = 0; i < 7; i++) {
       let d = new Date(baseDate);
@@ -534,7 +542,6 @@
 
       mapUrls[i] = `https://earth.nullschool.net/#${yyyy}/${mm}/${dd}/1200Z/wind/surface/level/orthographic=${coords},3000/loc=${coords}`;
 
-      // Date verification: The 12:00 UTC observation is available if 'now' is past 12:00 UTC on that day
       const targetUtcTime = Date.UTC(yyyy, d.getMonth(), d.getDate(), 12, 0, 0);
       const isPastOrToday = (now.getTime() >= targetUtcTime) || demoMode;
       dayAvailability[i] = isPastOrToday;
@@ -741,6 +748,108 @@
         });
         renderCharts();
       } catch(e){}
+    }
+  }
+
+  // Helper: Degrees to Compass Direction
+  function degreesToCompass(deg) {
+    if (deg === null || deg === undefined || isNaN(deg)) return '--';
+    const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 
+                  'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+    const idx = Math.round(deg / 22.5) % 16;
+    return dirs[idx];
+  }
+
+  // Password-Protected Teacher Key Generator
+  async function fetchTeacherKeyWithPassword(btn) {
+    if (!isTeacherAuthenticated) {
+      const enteredPassword = prompt("🔐 Enter Teacher Password:");
+      if (enteredPassword !== "BrothenRocks") {
+        alert("❌ Incorrect password. Access denied.");
+        return;
+      }
+      isTeacherAuthenticated = true;
+    }
+
+    const sel = document.getElementById('schoolSelect');
+    if (!sel.value) {
+      alert("⚠️ Please select a school location from the dropdown first!");
+      sel.focus();
+      return;
+    }
+
+    const [lon, lat] = sel.value.split(',');
+    const startVal = document.getElementById('startDate').value;
+    if (!startVal) {
+      alert("⚠️ Please select a start date first!");
+      return;
+    }
+
+    const startDate = new Date(startVal + 'T00:00:00');
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const sStr = fmt(startDate);
+    const eStr = fmt(endDate);
+
+    const status = document.getElementById('keyStatus');
+    btn.disabled = true;
+    status.innerText = "⏳ Fetching 7-day weather model archive...";
+
+    // Try Open-Meteo Historical Archive first, then fall back to Forecast API for recent days
+    const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${sStr}&end_date=${eStr}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,surface_pressure,precipitation,wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=UTC`;
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${sStr}&end_date=${eStr}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,surface_pressure,precipitation,wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=UTC`;
+
+    let data = null;
+
+    try {
+      let res = await fetch(archiveUrl);
+      if (res.ok) {
+        data = await res.json();
+      }
+      // If archive has not been published yet for recent days, fallback to recent forecast archive
+      if (!data || !data.hourly || !data.hourly.time || data.hourly.time.length === 0) {
+        res = await fetch(forecastUrl);
+        if (res.ok) data = await res.json();
+      }
+      if (!data || !data.hourly) throw new Error("Could not retrieve model data.");
+
+      for (let day = 0; day < 7; day++) {
+        let curDate = new Date(startDate);
+        curDate.setDate(startDate.getDate() + day);
+        const targetTimeStr = `${fmt(curDate)}T12:00`;
+        const idx = data.hourly.time.indexOf(targetTimeStr);
+
+        if (idx !== -1) {
+          const t = data.hourly.temperature_2m[idx];
+          const p = data.hourly.precipitation ? data.hourly.precipitation[idx] : 0;
+          const h = data.hourly.relative_humidity_2m[idx];
+          const press = (data.hourly.pressure_msl && data.hourly.pressure_msl[idx] !== null)
+            ? data.hourly.pressure_msl[idx]
+            : data.hourly.surface_pressure[idx];
+          const wSpeed = Math.round(data.hourly.wind_speed_10m[idx]);
+          const wDir = degreesToCompass(data.hourly.wind_direction_10m[idx]);
+
+          document.querySelector(`input[data-var="temp"][data-day="${day}"]`).value = (t !== null && !isNaN(t)) ? t.toFixed(1) : '';
+          document.querySelector(`input[data-var="precip"][data-day="${day}"]`).value = (p !== null && !isNaN(p)) ? p.toFixed(1) : '0.0';
+          document.querySelector(`input[data-var="humidity"][data-day="${day}"]`).value = (h !== null && !isNaN(h)) ? Math.round(h) : '';
+          document.querySelector(`input[data-var="pressure"][data-day="${day}"]`).value = (press !== null && !isNaN(press)) ? Math.round(press) : '';
+          document.querySelector(`input[data-var="wind"][data-day="${day}"]`).value = (wSpeed !== null && !isNaN(wSpeed)) ? wSpeed : '';
+          document.querySelector(`input[data-var="wind_dir"][data-day="${day}"]`).value = wDir;
+        }
+      }
+
+      renderCharts();
+      status.innerText = "✓ Answer key & graphs loaded successfully!";
+      setTimeout(() => { status.innerText = ""; }, 4500);
+    } catch (err) {
+      console.error(err);
+      alert("⚠️ Could not load data. Ensure that the 7 days have already occurred, as numerical models can only be pulled for past or current dates.");
+      status.innerText = "";
+    } finally {
+      btn.disabled = false;
     }
   }
 
