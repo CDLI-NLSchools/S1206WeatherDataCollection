@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CDLI Science 1206 - Weather Station & Grapher</title>
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- LZ-String for URL state compression -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
   <style>
     :root {
       --primary: #1e3a8a;
@@ -43,7 +46,7 @@
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 12px;
     }
     .grid-3 {
       display: grid;
@@ -80,6 +83,8 @@
     .btn:hover { background: #172554; }
     .btn-secondary { background: var(--secondary); }
     .btn-secondary:hover { background: #0369a1; }
+    .btn-success { background: #047857; }
+    .btn-success:hover { background: #065f46; }
     
     /* Map Buttons States */
     .btn-map {
@@ -194,7 +199,7 @@
       display: none;
     }
 
-    /* Modal for Bulk Restore */
+    /* Modal for Restore */
     #restoreModal {
       display: none;
       position: fixed;
@@ -219,21 +224,23 @@
   <div style="border-bottom: 2px solid var(--primary); padding-bottom: 10px; margin-bottom: 20px;">
     <h1>CDLI Science 1206: Weather Station & Graph Engine</h1>
     <p style="margin: 0; color: #475569;">
-      Select your school, inspect Earth.nullschool each morning, and paste your labeled data lines into your assigned Google Doc.
+      Select your school, inspect Earth.nullschool each morning at 8:00 AM, and save your progress across devices.
     </p>
   </div>
 
-  <!-- Top Google Doc Sync Bar -->
+  <!-- Persistence & Sync Bar -->
   <div class="banner">
     <div>
-      <strong>Switched computers or finished all 7 days?</strong>
+      <strong>💾 Cross-Device Save & Submission Engine</strong>
       <span style="display: block; font-size: 0.82rem; color: #475569;">
-        Paste your lines from your Google Doc to instantly rebuild the table and graphs.
+        Save your work or generate your final submission link for Brightspace.
       </span>
     </div>
-    <div style="display: flex; gap: 10px; align-items: center;">
+    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
       <span id="toastBadge" class="toast-pill">✓ Copied!</span>
-      <button class="btn btn-secondary" onclick="openRestoreModal()">📥 Restore Days from Google Doc</button>
+      <button class="btn btn-secondary" onclick="copyStateLink()">🔗 Copy Save/Submit Link</button>
+      <button class="btn btn-secondary" onclick="emailStateLink()">✉️ Email Me Link</button>
+      <button class="btn" style="background:#475569;" onclick="openRestoreModal()">📥 Restore Data</button>
     </div>
   </div>
 
@@ -392,7 +399,7 @@
     <div>
       <h2 style="margin-bottom: 4px;">Trend Analysis Graphs</h2>
       <span style="font-size: 0.85rem; color: #475569;">
-        Click <strong>"Copy Graph to Doc"</strong> under each chart, then switch to your Google Doc and press <strong>Ctrl + V</strong>.
+        Click <strong>"Copy Graph to Doc"</strong> under each chart, then switch to your document and press <strong>Ctrl + V</strong> (or <strong>Cmd + V</strong>).
       </span>
     </div>
   </div>
@@ -442,7 +449,7 @@
   <!-- Teacher Controls Section -->
   <div style="margin-top: 50px; padding-top: 15px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
     <div>
-      <button type="button" class="btn" style="background: #047857;" onclick="fetchTeacherKeyWithPassword(this)">
+      <button type="button" class="btn btn-success" onclick="fetchTeacherKeyWithPassword(this)">
         🔑 Auto-Generate Answer Key & Graphs
       </button>
       <span id="keyStatus" style="font-size: 0.8rem; color: #047857; margin-left: 8px;"></span>
@@ -455,17 +462,17 @@
   </div>
 </div>
 
-<!-- Modal: Restore All Days from Google Doc -->
+<!-- Modal: Restore All Days -->
 <div id="restoreModal">
   <div class="modal-content">
-    <h3 style="margin-top: 0;">Restore Days from Google Doc</h3>
+    <h3 style="margin-top: 0;">Restore Data</h3>
     <p style="font-size: 0.85rem; color: #475569;">
-      Copy your labeled lines from your Google Doc and paste them here:
+      Paste your <strong>Save/Resume Link</strong> OR your old <strong>Google Doc text lines</strong> below:
     </p>
-    <textarea id="bulkPasteText" rows="8" style="width: 100%; box-sizing: border-box; font-family: monospace; font-size: 0.8rem;" placeholder="Day 1: Temp: 4.2°C | Precip: 0.0mm | Humidity: 78% | Pressure: 1014hPa | Wind: 18km/h NW&#10;Day 2: Temp: 5.1°C | Precip: 2.0mm | Humidity: 85% | Pressure: 1008hPa | Wind: 22km/h W"></textarea>
+    <textarea id="bulkPasteText" rows="7" style="width: 100%; box-sizing: border-box; font-family: monospace; font-size: 0.8rem;" placeholder="Paste link here (e.g. https://...#state=...) or paste lines:&#10;Day 1: Temp: 4.2°C | Precip: 0.0mm..."></textarea>
     <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
       <button class="btn" style="background: #94a3b8;" onclick="closeRestoreModal()">Cancel</button>
-      <button class="btn btn-secondary" onclick="applyBulkPaste()">Apply to Table</button>
+      <button class="btn btn-secondary" onclick="applySmartRestore()">Restore Data</button>
     </div>
   </div>
 </div>
@@ -476,6 +483,13 @@
   let dayAvailability = [];
   let isTeacherAuthenticated = false;
 
+  // Session Lineage & Anti-Tamper Meta
+  let sessionMeta = {
+    genesisId: crypto.randomUUID().slice(0, 8),
+    createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    originalAuthor: ""
+  };
+
   function onSchoolChange() {
     const sel = document.getElementById('schoolSelect');
     const warn = document.getElementById('schoolWarn');
@@ -483,6 +497,7 @@
       sel.classList.remove('required-alert');
       warn.style.display = 'none';
       updateAllDayLinks();
+      autoSaveLocal();
     }
   }
 
@@ -540,7 +555,8 @@
       document.getElementById(`d${i}-lbl`).innerText = labelStr;
       dayLabels.push(labelStr);
 
-      mapUrls[i] = `https://earth.nullschool.net/#${yyyy}/${mm}/${dd}/1200Z/wind/surface/level/orthographic=${coords},3000/loc=${coords}`;
+      // Launch with temperature overlay active by default
+      mapUrls[i] = `https://earth.nullschool.net/#${yyyy}/${mm}/${dd}/1200Z/wind/surface/level/overlay=temp/orthographic=${coords},3000/loc=${coords}`;
 
       const targetUtcTime = Date.UTC(yyyy, d.getMonth(), d.getDate(), 12, 0, 0);
       const isPastOrToday = (now.getTime() >= targetUtcTime) || demoMode;
@@ -563,7 +579,7 @@
     updateChartLabels();
   }
 
-  // Chart Setup
+  // Chart.js Setup
   const charts = {};
   function createChart(id, label, color, type = 'line') {
     const ctx = document.getElementById(id).getContext('2d');
@@ -643,7 +659,7 @@
     const badge = document.getElementById('toastBadge');
     badge.innerText = text;
     badge.style.display = 'inline-block';
-    setTimeout(() => { badge.style.display = 'none'; }, 2200);
+    setTimeout(() => { badge.style.display = 'none'; }, 2500);
   }
 
   // Single Day Copy
@@ -670,7 +686,104 @@
     });
   }
 
-  // Smart Bulk Restore Parser
+  // STATE MANAGEMENT (PERSISTENCE & RESUME LINK)
+  function buildCurrentState() {
+    const nameInput = document.getElementById('studentName').value.trim();
+    if (!sessionMeta.originalAuthor && nameInput) {
+      sessionMeta.originalAuthor = nameInput;
+    }
+
+    const tableData = {};
+    document.querySelectorAll('.data-inp').forEach(inp => {
+      tableData[`${inp.dataset.var}_${inp.dataset.day}`] = inp.value;
+    });
+
+    return {
+      meta: sessionMeta,
+      studentName: nameInput,
+      school: document.getElementById('schoolSelect').value,
+      startDate: document.getElementById('startDate').value,
+      tableData: tableData
+    };
+  }
+
+  function autoSaveLocal() {
+    const state = buildCurrentState();
+    localStorage.setItem('cdli_weather_compact_cache', JSON.stringify(state));
+  }
+
+  function generateSnapshotUrl() {
+    const state = buildCurrentState();
+    const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(state));
+    return `${window.location.origin}${window.location.pathname}#state=${compressed}`;
+  }
+
+  function copyStateLink() {
+    const name = document.getElementById('studentName').value.trim();
+    if (!name) {
+      alert("⚠️ Please enter your Student Name first!");
+      return;
+    }
+    const url = generateSnapshotUrl();
+    navigator.clipboard.writeText(url).then(() => {
+      showToast("✓ Link Copied!");
+    }).catch(() => {
+      prompt("Copy your resume link:", url);
+    });
+  }
+
+  function emailStateLink() {
+    const name = document.getElementById('studentName').value.trim();
+    if (!name) {
+      alert("⚠️ Please enter your Student Name first!");
+      return;
+    }
+    const url = generateSnapshotUrl();
+    const subject = encodeURIComponent(`Weather Station Progress - ${name}`);
+    const body = encodeURIComponent(
+      `Here is your save link for the CDLI Science 1206 Weather Station:\n\n${url}\n\nOpen this link on any computer to resume your work.`
+    );
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`, '_blank');
+  }
+
+  function restoreFullState(state) {
+    if (!state) return;
+    if (state.meta) sessionMeta = state.meta;
+
+    if (state.studentName) {
+      const nameEl = document.getElementById('studentName');
+      nameEl.value = state.studentName;
+      if (state.meta && state.meta.originalAuthor) {
+        nameEl.readOnly = true;
+        nameEl.style.backgroundColor = "#e2e8f0";
+        nameEl.title = "Name locked to original session author.";
+      }
+    }
+
+    if (state.school) {
+      document.getElementById('schoolSelect').value = state.school;
+      document.getElementById('schoolWarn').style.display = 'none';
+      document.getElementById('schoolSelect').classList.remove('required-alert');
+    }
+
+    if (state.startDate) {
+      document.getElementById('startDate').value = state.startDate;
+    }
+
+    updateAllDayLinks();
+
+    if (state.tableData) {
+      Object.keys(state.tableData).forEach(key => {
+        const [v, day] = key.split('_');
+        const el = document.querySelector(`input[data-var="${v}"][data-day="${day}"]`);
+        if (el) el.value = state.tableData[key];
+      });
+    }
+
+    renderCharts();
+  }
+
+  // Restore Modal & Dual Format Parser (Link or Google Doc lines)
   function openRestoreModal() {
     document.getElementById('restoreModal').style.display = 'flex';
   }
@@ -678,10 +791,28 @@
     document.getElementById('restoreModal').style.display = 'none';
   }
 
-  function applyBulkPaste() {
-    const text = document.getElementById('bulkPasteText').value;
-    if (!text.trim()) { closeRestoreModal(); return; }
+  function applySmartRestore() {
+    const text = document.getElementById('bulkPasteText').value.trim();
+    if (!text) { closeRestoreModal(); return; }
 
+    // Case 1: Pasted a #state= snapshot link or compressed token
+    if (text.includes('#state=') || (!text.includes('\n') && text.length > 50)) {
+      try {
+        const compressed = text.includes('#state=') ? text.split('#state=')[1] : text;
+        const json = LZString.decompressFromEncodedURIComponent(compressed);
+        if (json) {
+          restoreFullState(JSON.parse(json));
+          autoSaveLocal();
+          closeRestoreModal();
+          showToast("✓ Restored from Link!");
+          return;
+        }
+      } catch (err) {
+        console.error("Link decompress error", err);
+      }
+    }
+
+    // Case 2: Pasted raw text lines from Google Doc
     const lines = text.split('\n');
     let loadedCount = 0;
 
@@ -724,34 +855,7 @@
     showToast(`✓ Restored ${loadedCount} Day(s)!`);
   }
 
-  // Local Cache
-  function autoSaveLocal() {
-    const state = {};
-    document.querySelectorAll('.data-inp').forEach(inp => {
-      state[`${inp.dataset.var}_${inp.dataset.day}`] = inp.value;
-    });
-    state['studentName'] = document.getElementById('studentName').value;
-    localStorage.setItem('cdli_weather_compact_cache', JSON.stringify(state));
-  }
-
-  function loadLocalCache() {
-    const cached = localStorage.getItem('cdli_weather_compact_cache');
-    if (cached) {
-      try {
-        const state = JSON.parse(cached);
-        if (state.studentName) {
-          document.getElementById('studentName').value = state.studentName;
-        }
-        document.querySelectorAll('.data-inp').forEach(inp => {
-          const val = state[`${inp.dataset.var}_${inp.dataset.day}`];
-          if (val !== undefined) inp.value = val;
-        });
-        renderCharts();
-      } catch(e){}
-    }
-  }
-
-  // Helper: Degrees to Compass Direction
+  // Degrees to Compass Direction
   function degreesToCompass(deg) {
     if (deg === null || deg === undefined || isNaN(deg)) return '--';
     const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 
@@ -760,11 +864,12 @@
     return dirs[idx];
   }
 
-  // Password-Protected Teacher Key Generator
+  // FIXED: Password-Protected NOAA GFS Teacher Key Generator
   async function fetchTeacherKeyWithPassword(btn) {
     if (!isTeacherAuthenticated) {
       const enteredPassword = prompt("🔐 Enter Teacher Password:");
-      if (enteredPassword !== "BrothenRocks") {
+      // Obfuscated password check (prevents plaintext source searching)
+      if (btoa(enteredPassword || "") !== "QnJvdGhlblJvY2tz") {
         alert("❌ Incorrect password. Access denied.");
         return;
       }
@@ -796,20 +901,17 @@
 
     const status = document.getElementById('keyStatus');
     btn.disabled = true;
-    status.innerText = "⏳ Fetching 7-day weather model archive...";
+    status.innerText = "⏳ Fetching NOAA GFS model archive...";
 
-    // Try Open-Meteo Historical Archive first, then fall back to Forecast API for recent days
-    const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${sStr}&end_date=${eStr}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,surface_pressure,precipitation,wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=UTC`;
-    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${sStr}&end_date=${eStr}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,surface_pressure,precipitation,wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=UTC`;
+    // 1. Explicitly specify &models=gfs_seamless to match earth.nullschool.net exactly
+    const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${sStr}&end_date=${eStr}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,surface_pressure,precipitation,wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=UTC&models=gfs_seamless`;
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${sStr}&end_date=${eStr}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,surface_pressure,precipitation,wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=UTC&models=gfs_seamless`;
 
     let data = null;
 
     try {
       let res = await fetch(archiveUrl);
-      if (res.ok) {
-        data = await res.json();
-      }
-      // If archive has not been published yet for recent days, fallback to recent forecast archive
+      if (res.ok) data = await res.json();
       if (!data || !data.hourly || !data.hourly.time || data.hourly.time.length === 0) {
         res = await fetch(forecastUrl);
         if (res.ok) data = await res.json();
@@ -824,7 +926,16 @@
 
         if (idx !== -1) {
           const t = data.hourly.temperature_2m[idx];
-          const p = data.hourly.precipitation ? data.hourly.precipitation[idx] : 0;
+          
+          // 2. Sum the 3-hour precipitation accumulation window (10:00, 11:00, 12:00 UTC)
+          let p = 0;
+          if (data.hourly.precipitation) {
+            const p0 = data.hourly.precipitation[idx] || 0;
+            const p1 = idx >= 1 ? (data.hourly.precipitation[idx - 1] || 0) : 0;
+            const p2 = idx >= 2 ? (data.hourly.precipitation[idx - 2] || 0) : 0;
+            p = p0 + p1 + p2;
+          }
+
           const h = data.hourly.relative_humidity_2m[idx];
           const press = (data.hourly.pressure_msl && data.hourly.pressure_msl[idx] !== null)
             ? data.hourly.pressure_msl[idx]
@@ -833,7 +944,7 @@
           const wDir = degreesToCompass(data.hourly.wind_direction_10m[idx]);
 
           document.querySelector(`input[data-var="temp"][data-day="${day}"]`).value = (t !== null && !isNaN(t)) ? t.toFixed(1) : '';
-          document.querySelector(`input[data-var="precip"][data-day="${day}"]`).value = (p !== null && !isNaN(p)) ? p.toFixed(1) : '0.0';
+          document.querySelector(`input[data-var="precip"][data-day="${day}"]`).value = p > 0 ? p.toFixed(1) : '0.0';
           document.querySelector(`input[data-var="humidity"][data-day="${day}"]`).value = (h !== null && !isNaN(h)) ? Math.round(h) : '';
           document.querySelector(`input[data-var="pressure"][data-day="${day}"]`).value = (press !== null && !isNaN(press)) ? Math.round(press) : '';
           document.querySelector(`input[data-var="wind"][data-day="${day}"]`).value = (wSpeed !== null && !isNaN(wSpeed)) ? wSpeed : '';
@@ -842,21 +953,44 @@
       }
 
       renderCharts();
+      autoSaveLocal();
       status.innerText = "✓ Answer key & graphs loaded successfully!";
       setTimeout(() => { status.innerText = ""; }, 4500);
     } catch (err) {
       console.error(err);
-      alert("⚠️ Could not load data. Ensure that the 7 days have already occurred, as numerical models can only be pulled for past or current dates.");
+      alert("⚠️ Could not load data. Ensure that the 7 days have occurred, as models can only pull past/current observations.");
       status.innerText = "";
     } finally {
       btn.disabled = false;
     }
   }
 
-  // Initialize
-  document.getElementById('schoolSelect').value = "";
-  updateAllDayLinks();
-  loadLocalCache();
+  // INITIALIZATION: Hash Snapshot -> LocalStorage fallback
+  window.addEventListener('DOMContentLoaded', () => {
+    if (window.location.hash.startsWith('#state=')) {
+      try {
+        const compressed = window.location.hash.replace('#state=', '');
+        const json = LZString.decompressFromEncodedURIComponent(compressed);
+        if (json) {
+          restoreFullState(JSON.parse(json));
+          showToast("✓ Restored from Link!");
+        }
+      } catch (e) {
+        console.error("Could not parse hash state", e);
+      }
+      history.replaceState(null, '', window.location.pathname);
+    } else {
+      const cached = localStorage.getItem('cdli_weather_compact_cache');
+      if (cached) {
+        try {
+          restoreFullState(JSON.parse(cached));
+        } catch(e) {}
+      } else {
+        updateAllDayLinks();
+      }
+    }
+  });
 </script>
+
 </body>
 </html>
