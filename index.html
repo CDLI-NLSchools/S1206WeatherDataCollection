@@ -261,7 +261,8 @@
         <option value="-55.69,52.36,Labrador">St. Lewis Academy (St. Lewis, Labrador)</option>
         <option value="-56.02,51.19,Island">Mary Simms All Grade (Main Brook, Island)</option>
         <option value="-57.30,50.64,Island">French Shore Academy (Port Saunders, Island)</option>
-        <option value="-53.36,46.73,Island">Stella Maris Academy (Trepassey, Island)</option>
+        <!-- Trepassey coordinates moved slightly inland (-53.35, 46.90) for perfect GFS model alignment -->
+        <option value="-53.35,46.90,Island">Stella Maris Academy (Trepassey, Island)</option>
       </select>
       <div id="schoolWarn" class="school-warning">⚠️ Please select your school above to unlock the map links!</div>
     </div>
@@ -864,7 +865,7 @@
     return dirs[idx];
   }
 
-  // FIXED: Password-Protected NOAA GFS Teacher Key Generator
+  // FIXED: Password-Protected NOAA GFS Teacher Key Generator (with cell_selection=nearest)
   async function fetchTeacherKeyWithPassword(btn) {
     if (!isTeacherAuthenticated) {
       const enteredPassword = prompt("🔐 Enter Teacher Password:");
@@ -903,9 +904,9 @@
     btn.disabled = true;
     status.innerText = "⏳ Fetching NOAA GFS model archive...";
 
-    // 1. Explicitly specify &models=gfs_seamless to match earth.nullschool.net exactly
-    const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${sStr}&end_date=${eStr}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,surface_pressure,precipitation,wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=UTC&models=gfs_seamless`;
-    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${sStr}&end_date=${eStr}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,surface_pressure,precipitation,wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=UTC&models=gfs_seamless`;
+    // Explicitly specify &models=gfs_seamless and &cell_selection=nearest to match earth.nullschool.net exactly
+    const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${sStr}&end_date=${eStr}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,surface_pressure,precipitation,wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=UTC&models=gfs_seamless&cell_selection=nearest`;
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${sStr}&end_date=${eStr}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,surface_pressure,precipitation,wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=UTC&models=gfs_seamless&cell_selection=nearest`;
 
     let data = null;
 
@@ -927,7 +928,7 @@
         if (idx !== -1) {
           const t = data.hourly.temperature_2m[idx];
           
-          // 2. Sum the 3-hour precipitation accumulation window (10:00, 11:00, 12:00 UTC)
+          // Sum the 3-hour precipitation accumulation window (10:00, 11:00, 12:00 UTC)
           let p = 0;
           if (data.hourly.precipitation) {
             const p0 = data.hourly.precipitation[idx] || 0;
